@@ -17,7 +17,7 @@ class Game extends React.Component {
 	}
 
 	componentDidMount() {
-		this.interval = setInterval(() => this.update(), 1000);
+		this.interval = setInterval(() => this.update(), 2000);
 	}
 	
 	componentWillUnmount() {
@@ -35,21 +35,20 @@ class Game extends React.Component {
 		}
 
 		fetchData();
-		console.log("fetched data")
 	}
 
 	handleClick(i) {
 		// Update locally
 		const squares = [...this.state.squares];
 		const step = this.state.stepNumber;
-			if (calculateWinner(squares) || squares[i]) {
-				return;
-			}
-			squares[i] = (this.state.stepNumber%2) === 0 ? 'X' : 'O';
-			this.setState({
-				squares: squares,
-				stepNumber: step + 1
-			}, () => {
+		if (calculateWinner(squares) || squares[i]) {
+			return;
+		}
+		squares[i] = (this.state.stepNumber%2) === 0 ? 'X' : 'O';
+		this.setState({
+			squares: squares,
+			stepNumber: step + 1
+		}, () => {
 			// Update server
 			const req = {
 				method: "POST",
