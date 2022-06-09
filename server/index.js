@@ -5,7 +5,19 @@ const app = express();
 
 const PORT = process.env.PORT || 3001;
 
-let data = {"squares":[null,null,null,null,null,null,null,null,null], "stepNumber":0};
+//let data = {"squares":[null,null,null,null,null,null,null,null,null], "stepNumber":0};
+
+let data = { squares: [null, 'O', null, 'O', null, 'O', null, 'O',
+    'O', null, 'O', null, 'O', null, 'O', null,
+    null, 'O', null, 'O', null, 'O', null, 'O',
+    null, null, null, null, null, null, null, null,
+    null, null, null, null, null, null, null, null,
+    'X', null, 'X', null, 'X', null, 'X', null,
+    null, 'X', null, 'X', null, 'X', null, 'X',
+    'X', null, 'X', null, 'X', null, 'X', null],
+    stepNumber: 0,
+    selected: null
+};
 
 // Have Node serve the files for our built React app
 app.use(express.static(path.resolve(__dirname, '../client/build')));
