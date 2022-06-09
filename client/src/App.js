@@ -1,46 +1,114 @@
 import React from "react";
-import ReactDOM from 'react-dom/client';
-import logo from "./logo.svg";
 import "./App.css";
 
-class App extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      history: []
-    };
-  }
-
-  async componentDidMount() {
-    const res = await fetch("/game");
-    const data = await res.json();
-    if (data.length == 0) {
-      const data = [{ squares: Array(9).fill(null), }]
-      const req = {
-        method: "POST",
-        headers: { "Content-Type" : 'application/json' },
-        body: JSON.stringify({ history: data })
-      };
-      fetch("/game", req);
-    }
-    this.setState({ history: data });
-    this.timer = setInterval(() => {
-      const res = fetch("/game");
-      const data = res.json();
-      this.setState({ history: data });
-    }, 1000);
-  }
-
-  render() {
-    return (<Game history = {this.state.history} />)
-  };
+function App() {
+  return (
+    <Game />
+  );
 }
 
-/*
- * Square is a 'function component' - a component 
- * 	that only contains a 'render' method. Thus, 
- * 	it is abbreviated.
- */
+class Game extends React.Component {
+	constructor(props) {
+		super(props);
+		this.state = {
+			squares: null,
+			stepNumber: null
+		};
+	}
+
+	componentDidMount() {
+		this.interval = setInterval(() => this.update(), 1000);
+	}
+	
+	componentWillUnmount() {
+		clearInterval(this.interval);
+	}
+
+	update() {
+		const fetchData = async () => {
+		const result = await fetch("/game");
+		const response = await result.json();
+		this.setState({
+			squares: response.squares,
+			stepNumber: response.stepNumber
+		});
+		}
+
+		fetchData();
+		console.log("fetched data")
+	}
+
+	handleClick(i) {
+		// Update locally
+		const squares = [...this.state.squares];
+		const step = this.state.stepNumber;
+			if (calculateWinner(squares) || squares[i]) {
+				return;
+			}
+			squares[i] = (this.state.stepNumber%2) === 0 ? 'X' : 'O';
+			this.setState({
+				squares: squares,
+				stepNumber: step + 1
+			}, () => {
+			// Update server
+			const req = {
+				method: "POST",
+				headers: { "Content-Type" : 'application/json' },
+				body: JSON.stringify(this.state)
+			};
+			fetch("/game", req);
+		});
+	}
+
+	// Reset game
+	resetGame() {
+		this.setState({
+			squares: Array(9).fill(null),
+			stepNumber: 0
+		}, () => {
+		// Update server
+		const req = {
+			method: "POST",
+			headers: { "Content-Type" : 'application/json' },
+			body: JSON.stringify(this.state)
+		};
+		fetch("/game", req);
+		});
+	}
+
+	render() {
+		if (this.state.squares == null) {
+			return(<div className='game-info'>
+				<div>{"Loading..."}</div>
+			</div>);
+		}
+
+		const winner = calculateWinner(this.state.squares);
+
+		let status;
+		if (winner) {
+			status = 'Winner: ' + winner;
+		} else {
+			status = 'Next player: ' + ((this.state.stepNumber%2) === 0 ? 'X' : 'O');
+		}
+
+		return (
+				<div className='game'>
+					<div className='game-board'>
+						<Board 
+							squares={this.state.squares}
+							onClick={(i) => this.handleClick(i)}
+						/>
+					</div>
+					<div className='game-info'>
+						<div>{status}</div>
+						<button onClick={() => this.resetGame()}>Reset game</button>
+					</div>
+				</div>
+		)
+	}
+}
+
 function Square(props) {
 	return (
 		<button 
@@ -52,10 +120,6 @@ function Square(props) {
 	);
 }
 
-/*
- * Board contains more than just the 'render' method,
- *  so it cannot be abbreviated.
- */
 class Board extends React.Component {
 	renderSquare(i) {
 		return (
@@ -90,107 +154,6 @@ class Board extends React.Component {
 	}
 }
 
-class Game extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			history: [],
-			stepNumber: null,
-			xIsNext: null,
-		};
-	}
-
-  componentDidMount() {
-    this.setState({
-      history: this.props.history,
-      stepNumber: this.props.history.length,
-      xIsNext: (this.props.history.length % 2) === 0,
-    });
-  }
-
-  componentDidUpdate(prevProps, prevState) {
-    if (prevProps.history !== this.props.history) {
-      this.setState({ 
-        history: this.props.history,
-        stepNumber: this.props.history.length,
-        xIsNext: (this.props.history.length % 2) === 0,
-      })
-    }
-  }
-
-	handleClick(i) {
-    // Update locally
-		const history = this.state.history.slice(0, this.state.stepNumber + 1);
-		const current = history[history.length - 1];
-		const squares = current.squares.slice();
-		if (calculateWinner(squares) || squares[i]) {
-			return;
-		}
-		squares[i] = this.state.xIsNext ? 'X' : 'O';
-		this.setState({
-			history: history.concat([{
-				squares: squares,
-			}]),
-			stepNumber: history.length,
-			xIsNext: !this.state.xIsNext,
-		});
-
-    // Update server
-    const req = {
-      method: "POST",
-      headers: { "Content-Type" : 'application/json' },
-      body: JSON.stringify({ history: history })
-    };
-    fetch("/game", req);
-	}
-
-	jumpTo(step) {
-		this.setState({
-			stepNumber: step,
-			xIsNext: (step % 2) === 0,
-		})
-	}
-
-	render() {
-		const history = this.state.history;
-		const current = history[this.state.stepNumber];
-		const winner = calculateWinner(current.squares);
-
-		const moves = history.map((step, move) => {
-			const desc = move ?
-				'Go to move #' + move :
-				'Go to game start';
-			return (
-				<li>
-					<button onClick={() => this.jumpTo(move)}>{desc}</button>
-				</li>
-			);
-		});
-
-		let status;
-		if (winner) {
-			status = 'Winner: ' + winner;
-		} else {
-			status = 'Next player: ' + (this.state.xIsNext ? 'X' : 'O');
-		}
-
-		return (
-			<div className='game'>
-				<div className='game-board'>
-					<Board 
-						squares={current.squares}
-						onClick={(i) => this.handleClick(i)}
-					/>
-				</div>
-				<div className='game-info'>
-					<div>{status}</div>
-					<ol>{moves}</ol>
-				</div>
-			</div>
-		)
-	}
-}
-
 function calculateWinner(squares) {
 	const lines = [
 		[0, 1, 2],
@@ -212,27 +175,3 @@ function calculateWinner(squares) {
 }
 
 export default App;
-
-
-/*
-function App() {
-  const [data, setData] = React.useState(null);
-
-  React.useEffect(() => {
-    fetch("/api")
-      .then((res) => res.json())
-      .then((data) => setData(data.message));
-  }, []);
-
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>{!data ? "Loading..." : data}</p>
-      </header>
-    </div>
-  );
-}
-
-export default App;
-*/
