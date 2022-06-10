@@ -43,10 +43,11 @@ class Game extends React.Component {
 		const squares = [...this.state.squares];
 		const step = this.state.stepNumber;
 		const xTurn = (step%2) === 0;
+		const captures = [-16, -14, 14, 16]; // Used for double capture logic
 		if (calculateWinner(squares)) {
 			return;
 		}
-        if ((squares[i] == 'X' && xTurn) || (squares[i] == 'O' && !xTurn)) {
+        if (((squares[i] == 'X' || squares[i] == 'K') && xTurn) || ((squares[i] == 'O' || squares[i] == 'Q') && !xTurn)) {
 			this.setState({ selected: i });
 			return;
         }
@@ -55,23 +56,16 @@ class Game extends React.Component {
 			return;
 		}
 		// Move piece
-		squares[i] = xTurn ? 'X' : 'O';
+		squares[i] = squares[this.state.selected];
 		squares[this.state.selected] = null;
-		// Removed captured if necessary
-		if (Math.abs(this.state.selected - i) == 14) {
-			if (xTurn) {
-				squares[i + 7] = null;
-			} else {
-				squares[i - 7] = null;
-			}
-		} 
-		else if (Math.abs(this.state.selected - i) == 18) {
-			if (xTurn) {
-				squares[i + 9] = null;
-			} else {
-				squares[i - 9] = null;
-			}
+		// Promote piece if necessary
+		if ((xTurn && i < 8) || (!xTurn && i > 55)) { 
+			squares[i] = xTurn ? 'K' : 'Q'; 
 		}
+		// Removed captured if necessary
+		if (Math.abs(this.state.selected - i) >= 14) {
+			squares[(i + this.state.selected)/2] = null;
+		} 
         // Update locally
 		this.setState({
 			squares: squares,
@@ -291,16 +285,26 @@ function legalMove(squares, from, to) {
 	if (squares[to] != null) {
 		return false;
 	}
-	const moved = squares[from];
-	if (moved == 'X') {
+	const xPieces = ['X', 'K'];
+	const oPieces = ['O', 'Q'];
+	let moved = squares[from];
+	if (xPieces.includes(moved)) {
 		if (from - to == 7 || from - to == 9 || 
-				(from - to == 14 && squares[to+7] == 'O') || (from - to == 18 && squares[to+9] == 'O')) {
+				(from - to == 14 && oPieces.includes(squares[to+7])) || 
+				(from - to == 18 && oPieces.includes(squares[to+9])) ||
+				(moved == 'K' && (to - from == 7 || to - from == 9)) ||
+				(moved == 'K' && to - from == 14 && oPieces.includes(squares[from+7])) || 
+				(moved == 'K' && to - from == 18 && oPieces.includes(squares[from+9]))) {
 			return true;
 		}
 	}
-	if (moved == 'O') {
+	if (oPieces.includes(moved)) {
 		if (to - from == 7 || to - from == 9 || 
-				(to - from == 14 && squares[from+7] == 'X') || (to - from == 18 && squares[from+9] == 'X')) {
+				(to - from == 14 && xPieces.includes(squares[from+7])) || 
+				(to - from == 18 && xPieces.includes(squares[from+9])) ||
+				(moved == 'Q' && (from - to == 7 || from - to == 9)) ||
+				(moved == 'Q' && from - to == 14 && xPieces.includes(squares[to+7])) || 
+				(moved == 'Q' && from - to == 18 && xPieces.includes(squares[to+9]))) {
 			return true;
 		}
 	}
