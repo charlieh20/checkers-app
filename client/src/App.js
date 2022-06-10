@@ -41,10 +41,14 @@ class Game extends React.Component {
 		const fetchData = async () => {
 			const result = await fetch("/game");
 			const response = await result.json();
-			this.setState({
-				squares: response.squares,
-				stepNumber: response.stepNumber
-			});
+			if (response.stepNumber == -1) {
+				this.fullReset();
+			} else {
+				this.setState({
+					squares: response.squares,
+					stepNumber: response.stepNumber
+				});
+			}
 		}
 
 		if (this.state.stepNumber == null) {
@@ -231,20 +235,22 @@ class Game extends React.Component {
 				</div>
 			)
 		}
-		
-		/*if (this.state.squares == null) {
-			return(<div className='game-info'>
-				<div>{"Loading..."}</div>
-			</div>);
-		}*/
 
 		const winner = calculateWinner(this.state.squares);
 
 		let status;
 		if (winner) {
-			status = 'Winner: ' + winner;
+			if ((this.state.id == 0 && winner == 'X') || (this.state.id == 1 && winner == 'O')) {
+				status = 'You win!';
+			} else {
+				status = 'You lose';
+			}
 		} else {
-			status = 'Next player: ' + ((this.state.stepNumber%2) === 0 ? 'X' : 'O');
+			if ((this.state.id == this.state.stepNumber%2)) {
+				status = "Your turn!";
+			} else {
+				status = "Opponent's turn";
+			}
 		}
 
 		return (

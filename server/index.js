@@ -65,6 +65,8 @@ app.post("/game", (req, res) => {
 app.get("/game", (req, res) => {
   if (activePlayers == 2) {
     res.json(data);
+  } else {
+    res.json({stepNumber: -1});
   }
 });
 
