@@ -11,7 +11,15 @@ class Game extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			squares: null,
+			id: null,
+			squares: [null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null],
 			stepNumber: null,
             selected: null
 		};
@@ -26,19 +34,42 @@ class Game extends React.Component {
 	}
 
 	update() {
-		const fetchData = async () => {
-		const result = await fetch("/game");
-		const response = await result.json();
-		this.setState({
-			squares: response.squares,
-			stepNumber: response.stepNumber
-		});
+		if (this.state.id == null || this.state.id == -1) {
+			return;
 		}
 
+		const fetchData = async () => {
+			const result = await fetch("/game");
+			const response = await result.json();
+			this.setState({
+				squares: response.squares,
+				stepNumber: response.stepNumber
+			});
+		}
+
+		if (this.state.stepNumber == null) {
+			if (this.state.id == 2) {
+				fetchData();
+				return;
+			}
+			const fetchJoin = async () => {
+				const result = await fetch("/join");
+				const response = await result.json();
+				if (response.players == 2) {
+					fetchData();
+				}
+			}
+			fetchJoin();
+			return;
+		}
 		fetchData();
 	}
 
 	handleClick(i) {
+		// Check turn
+		if (this.state.stepNumber%2 !== this.state.id%2) {
+			return;
+		}
 		// Conduct game logic
 		const squares = [...this.state.squares];
 		const step = this.state.stepNumber;
@@ -82,8 +113,27 @@ class Game extends React.Component {
 		});
 	}
 
-	// Reset game
-	resetGame() {
+	// Join game
+	joinGame() {
+		const fetchJoin = async () => {
+			const req = {
+				method: "POST"
+			};
+			const result = await fetch("/join", req);
+			const response = await result.json();
+			this.setState({
+				id: response.id,
+			});
+		}
+		this.setState({
+			id: 0,
+		}, () => {
+			fetchJoin();
+		});
+	}
+
+	// Restart game
+	restartGame() {
 		this.setState({
 			squares: [null, 'O', null, 'O', null, 'O', null, 'O',
 				'O', null, 'O', null, 'O', null, 'O', null,
@@ -106,12 +156,87 @@ class Game extends React.Component {
 		});
 	}
 
+	// Reset server
+	fullReset() {
+		this.setState({
+			id: null,
+			squares: [null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null,
+				null, null, null, null, null, null, null, null],
+			stepNumber: null,
+            selected: null
+		}, () => {
+		// Update server
+		const req = {
+			method: "POST",
+			headers: { "Content-Type" : 'application/json' },
+			body: JSON.stringify({id: -1})
+		};
+		fetch("/game", req);
+		});
+	}
+
 	render() {
-		if (this.state.squares == null) {
+		if (this.state.id == null) {
+			return (
+				<div className='game'>
+					<div className='game-board'>
+						<Board 
+							squares={this.state.squares}
+							onClick={(i) => this.handleClick(i)}
+						/>
+					</div>
+					<div className='game-info'>
+						<div>{"Online checkers"}</div>
+						<button onClick={() => this.joinGame()}>Start game</button>
+					</div>
+				</div>
+			)
+		}
+
+		if (this.state.id == -1) {
+			return (
+				<div className='game'>
+					<div className='game-board'>
+						<Board 
+							squares={this.state.squares}
+							onClick={(i) => this.handleClick(i)}
+						/>
+					</div>
+					<div className='game-info'>
+						<div>{"Game full"}</div>
+						<button onClick={() => this.fullReset()}>Reset server</button>
+					</div>
+				</div>
+			)
+		}
+
+		if (this.state.stepNumber == null) {
+			return (
+				<div className='game'>
+					<div className='game-board'>
+						<Board 
+							squares={this.state.squares}
+							onClick={(i) => this.handleClick(i)}
+						/>
+					</div>
+					<div className='game-info'>
+						<div>{"Waiting for oponent..."}</div>
+					</div>
+				</div>
+			)
+		}
+		
+		/*if (this.state.squares == null) {
 			return(<div className='game-info'>
 				<div>{"Loading..."}</div>
 			</div>);
-		}
+		}*/
 
 		const winner = calculateWinner(this.state.squares);
 
@@ -132,7 +257,8 @@ class Game extends React.Component {
 					</div>
 					<div className='game-info'>
 						<div>{status}</div>
-						<button onClick={() => this.resetGame()}>Reset game</button>
+						<button onClick={() => this.restartGame()}>Reset game</button>
+						<button onClick={() => this.fullReset()}>Reset server</button>
 					</div>
 				</div>
 		)
