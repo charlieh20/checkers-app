@@ -5,7 +5,7 @@ const app = express();
 
 const PORT = process.env.PORT || 3001;
 
-//let data = {"squares":[null,null,null,null,null,null,null,null,null], "stepNumber":0};
+//let data = {"squares":[null,null,null,null,null,null,null,null,null], "step":0};
 
 const defaultData = {
   squares: [null, 'O', null, 'O', null, 'O', null, 'O',
@@ -16,7 +16,7 @@ const defaultData = {
     'X', null, 'X', null, 'X', null, 'X', null,
     null, 'X', null, 'X', null, 'X', null, 'X',
     'X', null, 'X', null, 'X', null, 'X', null],
-  stepNumber: 0
+  step: 0
 };
 
 let activePlayers = 0;
@@ -53,10 +53,9 @@ app.post("/game", (req, res) => {
   if (newData.id == -1) {
     activePlayers = 0;
     data = defaultData;
-  }
-  else {
+  } else {
     data.squares = newData.squares;
-    data.stepNumber = newData.stepNumber;
+    data.step = newData.step;
     res.end();
   }
 });
@@ -66,7 +65,7 @@ app.get("/game", (req, res) => {
   if (activePlayers == 2) {
     res.json(data);
   } else {
-    res.json({stepNumber: -1});
+    res.json({step: -1});
   }
 });
 

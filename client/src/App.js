@@ -1,13 +1,232 @@
-import React from "react";
-import "./App.css";
+import React, { useState, useEffect } from "react";
+import "./App.css"
+import {
+	BrowserRouter as Router,
+	Routes,
+	Route,
+  } from "react-router-dom";
+  import Game from "./Components/Game";
 
+export default function App() {
+	return (
+		<Router>
+			<div>
+				<Routes>
+					<Route path="/" element={<Game/>}/>
+				</Routes>
+			</div>
+		</Router>
+	);
+}
+/*
 function App() {
   return (
     <Game />
   );
 }
 
-class Game extends React.Component {
+function Game() {
+	const blankBoard = [null, null, null, null, null, null, null, null,
+		null, null, null, null, null, null, null, null,
+		null, null, null, null, null, null, null, null,
+		null, null, null, null, null, null, null, null,
+		null, null, null, null, null, null, null, null,
+		null, null, null, null, null, null, null, null,
+		null, null, null, null, null, null, null, null,
+		null, null, null, null, null, null, null, null];
+	const newBoard = [null, 'O', null, 'O', null, 'O', null, 'O',
+		'O', null, 'O', null, 'O', null, 'O', null,
+		null, 'O', null, 'O', null, 'O', null, 'O',
+		null, null, null, null, null, null, null, null,
+		null, null, null, null, null, null, null, null,
+		'X', null, 'X', null, 'X', null, 'X', null,
+		null, 'X', null, 'X', null, 'X', null, 'X',
+		'X', null, 'X', null, 'X', null, 'X', null];
+
+	const [id, setId] = useState();
+	const [squares, setSquares] = useState(blankBoard);
+	const [step, setStep] = useState();
+	const [selected, setSelected] = useState();
+
+	useEffect(() => {
+		const interval = setInterval(() => update(), 2000);
+		return () => {
+			clearInterval(interval);
+		}
+	})
+
+	// Checks with server and updates game appropriately
+	function update() {
+		if (id == null || id == -1) {
+			return;
+		}
+
+		const fetchData = async () => {
+			const result = await fetch("/game");
+			const response = await result.json();
+			if (response.step == -1) {
+				fullReset();
+			} else {
+				setSquares(response.squares);
+				setStep(response.step);
+			}
+		}
+
+		if (step == null) {
+			if (id == 2) {
+				fetchData();
+				return;
+			}
+			const fetchJoin = async () => {
+				const result = await fetch("/join");
+				const response = await result.json();
+				if (response.players == 2) {
+					fetchData();
+				}
+			}
+			fetchJoin();
+			return;
+		}
+		fetchData();
+	}
+
+	// Handles logic of user joining a game
+	function joinGame() {
+		const fetchJoin = async () => {
+			const req = {
+				method: "POST",
+				headers: { "Content-Type" : 'application/json' },
+				body: JSON.stringify({id: id})
+			};
+			const result = await fetch("/join", req);
+			const response = await result.json();
+			setId(response.id);
+		}
+		setId(0);
+		fetchJoin();
+	}
+
+	// Handles logic of restarting existing game
+	function restartGame() {
+		setSquares(newBoard);
+		setStep(0);
+        setSelected(null);
+		// Update server
+		const req = {
+			method: "POST",
+			headers: { "Content-Type" : 'application/json' },
+			body: JSON.stringify({squares: newBoard, step: 0})
+		};
+		fetch("/game", req);
+	}
+
+	// Handles logic of reseting server
+	function fullReset() {
+		setId(null);
+		setSquares(blankBoard);
+		setStep(null);
+		setSelected(null);
+		// Update server
+		const req = {
+			method: "POST",
+			headers: { "Content-Type" : 'application/json' },
+			body: JSON.stringify({id: -1})
+		};
+		fetch("/game", req);
+	}
+
+	// Handles logic after a square is clicked
+	function handleClick(i) {
+		// Check turn
+		if (step%2 !== id%2) {
+			return;
+		}
+		// Conduct game logic
+		const newSquares = [...squares];
+		const xTurn = (step%2) === 0;
+		if (calculateWinner(squares)) {
+			return;
+		}
+        if (((squares[i] == 'X' || squares[i] == 'K') && xTurn) || ((squares[i] == 'O' || squares[i] == 'Q') && !xTurn)) {
+			setSelected(i);
+			return;
+        }
+		if (!legalMove(squares, selected, i)) {
+			setSelected(null);
+			return;
+		}
+		// Move piece
+		newSquares[i] = squares[selected];
+		newSquares[selected] = null;
+		// Promote piece if necessary
+		if ((xTurn && i < 8) || (!xTurn && i > 55)) { 
+			newSquares[i] = xTurn ? 'K' : 'Q'; 
+		}
+		// Removed captured if necessary
+		if (Math.abs(selected - i) >= 14) {
+			newSquares[(i + selected)/2] = null;
+		} 
+		// Update server
+		const req = {
+			method: "POST",
+			headers: { "Content-Type" : 'application/json' },
+			body: JSON.stringify({squares: newSquares, step: step+1})
+		};
+		fetch("/game", req);
+		// Update locally
+		setSquares(newSquares);
+		setStep(step + 1);
+		setSelected(null);
+	}
+
+	// Render game
+	let message, buttons;
+	if (id == null) {
+		message = "Online checkers";
+		buttons = <div><button onClick={() => joinGame()}>Start game</button></div>;
+	}
+	else if (id == -1) {
+		message = "Game full";
+		buttons = <div><button onClick={() => fullReset()}>Reset server</button></div>;
+	}
+	else if (step == null) {
+		message = "Waiting for opponent...";
+		buttons = <div><button onClick={() => fullReset()}>Reset server</button></div>;
+	}
+	else {
+		const winner = calculateWinner(squares);
+		if (winner) {
+			if ((id == 0 && winner == 'X') || (id == 1 && winner == 'O')) {
+				message = 'You win!';
+			} else {
+				message = 'You lose';
+			}
+		} else {
+			if ((id == step%2)) {
+				message = "Your turn!";
+			} else {
+				message = "Opponent's turn";
+			}
+		}
+		buttons = (<div><button onClick={() => restartGame()}>Reset game</button>
+			<button onClick={() => fullReset()}>Reset server</button></div>);
+	}
+
+	return (
+		<div className='game'>
+			<Board 
+				squares={squares}
+				onClick={(i) => handleClick(i)}
+			/>
+			<div className='game-info'>
+				<div>{message}</div>
+				{buttons}
+			</div>
+		</div>
+	);
+}
+
+/*class Game extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
@@ -284,7 +503,7 @@ class Board extends React.Component {
 
 	render() {
 		return (
-			<div>
+			<div className='game-board'>
 				<div className='status'>{}</div>
 				<div className='board-row'>
 					{this.renderSquare(0)}
